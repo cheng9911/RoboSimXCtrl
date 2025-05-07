@@ -7,8 +7,9 @@ import modern_robotics as mr
 
 from arm.geometry import Geometry3D, Capsule
 from arm.utils import MathUtils
-from .robot_config import RobotConfig
-from .robot import Robot, get_transformation_mdh, wrap
+
+from robot_config import RobotConfig
+from robot import Robot, get_transformation_mdh, wrap
 
 
 class UR5e(Robot):

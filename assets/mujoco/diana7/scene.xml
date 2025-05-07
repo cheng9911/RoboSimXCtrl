@@ -8,7 +8,7 @@
     
 
     <include file="diana.xml" />
-    <include file="../robotiq_2f85/2f85.xml" />
+    <!-- <include file="../robotiq_2f85/2f85.xml" /> -->
 
 
     <statistic center="0.3 0 0.3" extent="0.8" meansize="0.08" />
@@ -74,15 +74,15 @@
 		</body>
     </worldbody>
 
-    <contact>
+    <!-- <contact>
 		<exclude body1="flange" body2="2f85_base" />
 		<exclude body1="link_7" body2="2f85_base" />
 		<exclude body1="link_6" body2="2f85_base" />
-	</contact>
+	</contact> -->
 
 	
 		<equality>
-    <weld name="attach" body1="flange" body2="2f85_base" active="true"  />
+    <!-- <weld name="attach" body1="flange" body2="2f85_base" active="true"  /> -->
 	
 		<weld name="attach_mocap" body1="mocap" body2="diana_base" active="false" />
 	</equality>

@@ -9,6 +9,17 @@ from pyroboplan.planning.cartesian_planner import CartesianPlanner, CartesianPla
 from pyroboplan.visualization.meshcat_utils import visualize_frames
 import matplotlib.pyplot as plt
 from pathlib import Path
+import mujoco
+import mujoco.viewer
+import sys
+import os
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.append(project_root)
+
+# 检查 sys.path
+print("sys.path:", sys.path)
+
+from utils import mj
 DELTA_T = 0.001
 class Robot:
     def __init__(
@@ -351,7 +362,8 @@ class Robot:
         plt.show()
 class DianaRobot(Robot):
     def __init__(self,target_frame, visualizer: bool = True):
-        pinocchio_model_dir = Path(__file__).parent.parent / "assets"/"urdf"
+        pinocchio_model_dir = Path(__file__).parent.parent.parent/ "assets"/"urdf"
+        print("pinocchio_model_dir:", pinocchio_model_dir.as_posix())
         model_path = pinocchio_model_dir  
         print(model_path)
         # 构建URDF绝对路径并转换为字符串
@@ -370,7 +382,7 @@ class DianaRobot(Robot):
         mesh_dir =model_path.resolve().as_posix()
 
         # 初始化父类（加载模型、初始化Meshcat）
-        super().__init__(urdf_path, mesh_dir, vizualizer=visualizer)
+        super().__init__(urdf_path, mesh_dir, vizualizer=visualizer,target_frame=target_frame)
 
         # 设置关节约束（从机器人控制器或官方SDK读取）
         dblMinPos = np.array([-3.124139, -1.570796, -3.124139, 0.000000, -3.124139, -3.124139, -3.124139])
@@ -392,34 +404,168 @@ class DianaRobot(Robot):
         # 2. 速度限位 (需手动扩展模型属性)
         self.model.velocityLimit = dblMaxVel       # 设置关节速度限位
         self.model.accelerationLimit = dblMaxAcc
+# class DianaMujocoEnv:
+#     def __init__(self,target_frame, visualizer: bool = True):
+#         self.diana_controller=DianaRobot(target_frame,visualizer)
+#         self.sim_hz = 500
+#         self.control_hz = 25
+#         #存储最近一次的动作
+#         self.latest_action = None
+#         #渲染缓存，用于存储渲染的结果
+#         self.render_cache = None
+#         #mujoco模型对象
+#         mujoco_model_dir = Path(__file__).parent.parent.parent / "assets"/"mujoco"
+#         mujoco_model_path = (
+#             mujoco_model_dir 
+            
+#             / "diana7" 
+#             / "scene.xml"
+#         ).resolve()
+#         self.mj_model = mujoco_model_path.as_posix()
+#         #mujoco数据对象
+#         self.mj_data: mujoco.MjData = mujoco.MjData(self.mj_model)
+#         #机器人对象
+#         self.diana_joint_names = ["joint_1", "joint_2", "joint_3", "joint_4",
+#                                  "joint_5", "joint_6","joint_7"]
+#         [mj.set_joint_q(self.mj_model, self.mj_data, jn, self.diana_controller.q[i]) for i, jn in enumerate(self.diana_joint_names)]
+#         mujoco.mj_forward(self.mj_model, self.mj_data)
 
+   
+
+class DianaMujocoEnv:
+    def __init__(self, target_frame="link_7", visualizer=True):
+        # 初始化机械臂控制器
+        self.diana_controller = DianaRobot(target_frame, visualizer=False)  # 禁用Pinocchio的可视化
+        
+        # MuJoCo环境初始化
+        self.sim_hz = 500
+        self.control_hz = 25
+        self.latest_action = None
+        self.render_cache = None
+        
+        # 加载MuJoCo模型
+        mujoco_model_dir = Path(__file__).parent.parent.parent / "assets"/"mujoco"
+        mujoco_model_path = (mujoco_model_dir / "diana7" / "scene.xml").resolve()
+        self.mj_model = mujoco.MjModel.from_xml_path(mujoco_model_path.as_posix())
+        self.mj_data = mujoco.MjData(self.mj_model)
+        
+        # 关节名称列表（需与MuJoCo模型中的关节顺序一致）
+        self.diana_joint_names = ["joint_1", "joint_2", "joint_3", "joint_4",
+                                 "joint_5", "joint_6","joint_7"]
+        
+        # 初始化关节位置
+        self.sync_to_mujoco(self.diana_controller.q)
+        mujoco.mj_forward(self.mj_model, self.mj_data)
+        
+        # 查看器句柄
+        self.viewer = None
+
+    def sync_to_mujoco(self, q):
+        """将控制器关节状态同步到MuJoCo仿真环境"""
+        for i, jnt_name in enumerate(self.diana_joint_names):
+            # 设置关节位置
+            self.mj_data.qpos[i] = q[i]
+            # 重置速度和加速度以保证平稳运动
+            self.mj_data.qvel[i] = 0.0
+            self.mj_data.qacc[i] = 0.0
     
+    def servoJ(self, q_target, delta_t=DELTA_T):
+        """带物理仿真的关节位置控制"""
+        # 先执行控制器的逻辑
+        result = self.diana_controller.servoJ(q_target, delta_t)
+        
+        # 同步状态到MuJoCo
+        self.sync_to_mujoco(self.diana_controller.q)
+        
+        # 执行物理仿真
+        steps = int(delta_t / self.mj_model.opt.timestep)
+        for _ in range(steps):
+            mujoco.mj_step(self.mj_model, self.mj_data)
+        
+        # 更新可视化
+        if self.viewer:
+            self.viewer.sync()
+        
+        return result
 
+    def visualize_trajectory(self, q_traj, dt=0.05):
+        """在MuJoCo查看器中可视化轨迹"""
+        with mujoco.viewer.launch_passive(self.mj_model, self.mj_data) as self.viewer:
+            for q in q_traj:
+                start_time = time.time()
+                
+                # 更新控制器状态
+                self.diana_controller.q = q.copy()
+                
+                # 同步到仿真环境
+                self.sync_to_mujoco(q)
+                mujoco.mj_forward(self.mj_model, self.mj_data)
+                
+                # 渲染
+                self.viewer.sync()
+                
+                # 精确时间控制
+                elapsed = time.time() - start_time
+                if elapsed < dt:
+                    time.sleep(dt - elapsed)
 
+    def execute_trajectory(self, q_traj, realtime=True):
+        """
+        执行预计算的轨迹
+        :param q_traj: 关节轨迹列表，每个元素是关节角度数组
+        :param realtime: 是否实时显示
+        """
+        with mujoco.viewer.launch_passive(self.mj_model, self.mj_data) as self.viewer:
+            for q in q_traj:
+                # 更新控制器状态
+                self.servoJ(q)
+                
+                # 实时模式下的时间控制
+                if realtime:
+                    time.sleep(DELTA_T)
+                else:
+                    self.viewer.sync()
+
+    def move_to_pose(self, target_pose, duration=2.0):
+        """笛卡尔空间运动"""
+        # 生成笛卡尔路径
+        tforms = [pinocchio.SE3.Identity()]
+        tforms[0].translation = target_pose
+        
+        # 路径规划
+        _, t_vec, q_vec, success = self.diana_controller.cartesian_planning(
+            self.diana_controller.q,
+            tforms,
+            dt=0.05
+        )
+        
+        if success:
+            # 执行轨迹
+            self.execute_trajectory(q_vec.T)
+        else:
+            print("笛卡尔路径规划失败！")
+
+# 使用示例
 if __name__ == "__main__":
+    env = DianaMujocoEnv(target_frame="link_7")
     
-    curr_time = 0
-
-    # urdf_path = urdf_path
-    target_frame = "link_7"
-    robot = DianaRobot(target_frame,visualizer=True)
-
-    # Define the Cartesian path from a start joint configuration
-
-    q_start = np.array([0.0, 0.564, 0, 1.84, 0.089, -0.504,0])
-    robot.MoveJ(q_start, v_max=1.8, a_max=8.0, dt=DELTA_T)
-
-    init = robot.get_cartesian_pose(q_start)
-
-    rot = Rotation.from_euler("z", 60, degrees=True).as_matrix()
-    rot_neg = Rotation.from_euler("z", -60, degrees=True).as_matrix()
-    tforms = [
-        init,
-        init * pinocchio.SE3(np.eye(3), np.array([0.0, 0.0, 0.2])),
-        init * pinocchio.SE3(rot, np.array([0.0, 0.25, 0.2])),
-        init * pinocchio.SE3(rot_neg, np.array([0.0, -0.25, 0.2])),
-        init * pinocchio.SE3(np.eye(3), np.array([0.2, 0.0, 0.0])),
-        init,
-    ]
-    target_pose=init * pinocchio.SE3(np.eye(3), np.array([0.0, 0.0, 0.2]))
-    robot.MoveL(tforms, dt=DELTA_T)
+    # 示例1：直接控制关节
+    # q_target = np.array([0.5, -0.3, 0.2, 1.0, -0.8, 0.5, 0.0])
+    # env.execute_trajectory([q_target], realtime=False)
+    
+    # # 示例2：笛卡尔空间运动
+    # target_pose = np.array([0.4, 0.2, 0.5])  # 3D坐标
+    # env.move_to_pose(target_pose)
+    
+    # # 示例3：可视化预计算轨迹
+    # q_home = np.zeros(7)
+    # q_sample = np.array([[np.sin(t*0.5)*0.5 for _ in range(7)] for t in range(100)])
+    # env.visualize_trajectory(q_sample, dt=0.05)
+    # 示例4：使用MuJoCo查看器
+    # env = DianaMujocoEnv(target_frame="link_7")
+    
+    # with mujoco.viewer.launch_passive(env.mj_model, env.mj_data) as env.viewer:
+    #     for _ in range(10000):
+    #         mujoco.mj_step(env.mj_model, env.mj_data)
+    #         env.viewer.sync()
+    #         time.sleep(0.01)
