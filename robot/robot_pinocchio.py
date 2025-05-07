@@ -407,7 +407,7 @@ if __name__ == "__main__":
     # Define the Cartesian path from a start joint configuration
 
     q_start = np.array([0.0, 0.564, 0, 1.84, 0.089, -0.504,0])
-    robot.MoveJ(q_start, v_max=1.8, a_max=8.0, dt=DELTA_T)
+    robot.MoveJ(q_start, v_max=1.8, a_max=8.0, dt=DELTA_T,traj_rviz=True)
 
     init = robot.get_cartesian_pose(q_start)
 
