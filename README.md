@@ -52,5 +52,5 @@ pip install pandas
 
 ## 使用参考
 ```python
-robot_pinocchio.py
+test_mujoco.py
 ```
