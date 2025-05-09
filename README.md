@@ -2,6 +2,7 @@
  针对机器人在仿真环境中的运动控制器，且实现了运动学（Kinematics）相关功能。
 
 ## 环境配置
+
 Installing pin:
 ```
 conda install pinocchio -c conda-forge
@@ -51,5 +52,5 @@ pip install pandas
 
 ## 使用参考
 ```python
-test.py
+robot_pinocchio.py
 ```
