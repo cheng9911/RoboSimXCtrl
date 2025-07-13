@@ -51,6 +51,7 @@
           filename="package://diana7_description/meshes/visual/obj/base.obj" />
       </geometry>
     </collision>
+    
   </link>
   <link
     name="link_1">
@@ -91,6 +92,7 @@
           filename="package://diana7_description/meshes/visual/obj/link_1.obj" />
       </geometry>
     </collision>
+   
   </link>
   <joint
     name="joint_1"

@@ -251,7 +251,7 @@ class Robot:
             print(f"[Collision] 检测到 {len(collision_indices)} 个碰撞对，已高亮显示")
             return True
 
-        print("[Collision] 无碰撞")
+        # print("[Collision] 无碰撞")
         return False
     def display_trajectory(self, q_vec: np.ndarray, t_vec: np.ndarray):
         """

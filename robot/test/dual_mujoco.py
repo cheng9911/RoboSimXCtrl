@@ -68,26 +68,29 @@ class Robot:
         """
         return extract_cartesian_pose(self.model, self.target_frame, q, data=self.data)
     
-    def inverse_kinematics(self,  target_position: np.ndarray, q_start: np.ndarray, max_retries: int = 5):
+    def get_joint_position(self):
+        """
+        Target joint Command ,not Actual joint Command;
+        """
+        return  self.q
+    
+    def inverse_kinematics(self,  target_position: pinocchio.SE3, q_start: np.ndarray, max_retries: int = 5):
         """
         Solve the inverse kinematics problem using Differential IK.
         """
-        ik = DifferentialIk(self.model, data=self.data, collision_model=self.collision_model, 
+        ik = DifferentialIk(self.model, data=self.data, collision_model=self.collision_model,
                             options=DifferentialIkOptions(max_retries=max_retries))
         q_sol = ik.solve(self.target_frame, target_position, q_start)
         return q_sol
-    
+
     def cartesian_planning(self, q_start: np.ndarray, tforms: list, dt: float = 0.05,max_retries: int = 10):
         """
         Perform Cartesian motion planning.
         """
-        options = CartesianPlannerOptions(
-            use_trapezoidal_scaling=True,
-            max_linear_velocity=0.1,
-            max_linear_acceleration=0.5,
-            max_angular_velocity=1.0,
-            max_angular_acceleration=1.0,
-        )
+        self.options = CartesianPlannerOptions(use_trapezoidal_scaling=True, max_linear_velocity=0.1,
+                                               max_linear_acceleration=0.5, max_angular_velocity=1.0,
+                                               max_angular_acceleration=1.0, )
+        options = self.options
         ik = DifferentialIk(self.model, data=self.data, collision_model=self.collision_model, 
                             options=DifferentialIkOptions(max_retries=max_retries))
         planner = CartesianPlanner(self.model, self.target_frame, tforms, ik, options=options)
@@ -96,8 +99,7 @@ class Robot:
         if not success:
             # 抛出异常失败
             print("Failed to generate Cartesian path.")
-            return None, None
-
+            return None, None, None, False
         return tforms_to_show,t_vec, q_vec,success
 
     def display_trajectory(self, q_vec: np.ndarray, t_vec: np.ndarray):

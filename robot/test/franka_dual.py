@@ -37,32 +37,17 @@ class Robot:
         Initialize the robot with the given URDF path.
         """
         self.model, self.collision_model, self.visual_model = self.load_robot(urdf_path, mesh_dir)
-        geom_ids = [i for i in range(len(self.collision_model.geometryObjects))]
-        for geom in self.collision_model.geometryObjects:
-            print(geom.name, geom.meshPath if hasattr(geom, 'meshPath') else 'no meshPath')
-        for i in range(len(geom_ids)):
-            for j in range(i+2, len(geom_ids)):
-                # 添加碰撞对 (避免同一个link重复碰撞)
-                pair = pinocchio.CollisionPair(geom_ids[i], geom_ids[j])
-                self.collision_model.addCollisionPair(pair)
-        for i, pair in enumerate(self.collision_model.collisionPairs):
-            geom1 = self.collision_model.geometryObjects[pair.first].name
-            geom2 = self.collision_model.geometryObjects[pair.second].name
-            print(f"Pair {i}: {geom1} <--> {geom2}")
         self.data = self.model.createData()
         self.collision_data = self.collision_model.createData()
         # 初始化当前关节角度为零（或其他方式）
         self.q = np.zeros(self.model.nq)
         self.target_frame = target_frame
         self.q_vel_limits = np.array([1.5] * self.model.nq)  # 最大速度 (rad/s)
-        self.q_limits = np.array([[-5*np.pi]*self.model.nq, [5*np.pi]*self.model.nq]).T  # 最小最大位置限制（可选）
+        self.q_limits = np.array([[-np.pi]*self.model.nq, [np.pi]*self.model.nq]).T  # 最小最大位置限制（可选）
         self.q_acc_limits = np.array([10.0] * self.model.nq)  # 最大加速度 (rad/s²)
         self.viz = MeshcatVisualizer(self.model, self.collision_model, self.visual_model, data=self.data)
         self.viz.initViewer(open=vizualizer)
         self.viz.loadViewerModel()
-        self.viz.displayVisuals(True)  # 隐藏
-        self.viz.displayCollisions(True)   # 显示
-        
         if(vizualizer):
             self.viz.display(self.q)
             time.sleep(2)
@@ -114,145 +99,7 @@ class Robot:
             print("Failed to generate Cartesian path.")
             return None, None, None, False
         return tforms_to_show,t_vec, q_vec,success
-    
-#     def check_and_highlight_collisions(self, collision_threshold: float = 0.01) -> bool:
-#         # 1. 计算正向运动学
-#         pinocchio.forwardKinematics(self.model, self.data, self.q)
-#         pinocchio.updateGeometryPlacements(self.model, self.data, self.collision_model, self.collision_data, self.q)
 
-#         # 2. 计算所有碰撞对的碰撞信息（距离和碰撞状态）
-#         pinocchio.computeCollisions(
-#             self.collision_model,
-#             self.collision_data,
-#             False
-#         )
-
-#         collision_indices = []
-
-#         # 3. 遍历所有碰撞对的结果
-#         for i, cr in enumerate(self.collision_data.collisionResults):
-#             dist = cr.min_distance if hasattr(cr, 'min_distance') else None
-#             is_collision = cr.isCollision() if hasattr(cr, 'isCollision') else False
-
-#             # 获取碰撞对
-#             pair = self.collision_model.collisionPairs[i]
-#             geom1 = self.collision_model.geometryObjects[pair.first]
-#             geom2 = self.collision_model.geometryObjects[pair.second]
-
-#             if dist is not None:
-#                 dist_str = f"{dist:.4f} m"
-#             else:
-#                 dist_str = "N/A"
-
-#             # 打印碰撞信息
-#             # print(f"[Collision Check] Pair {i}: {geom1.name} <--> {geom2.name}, "
-#             #     f"distance: {dist_str}, collision: {is_collision}")
-
-#             if is_collision or (dist is not None and dist < collision_threshold):
-#                 print(f"[Collision Detected] 碰撞对 {i}: {geom1.name} <--> {geom2.name}, "
-#                     f"距离 {dist_str} < 阈值 {collision_threshold}")
-#                 collision_indices.append(i)
-
-#                 # 4. 重置所有碰撞几何体颜色为默认灰色
-#                 # 1. 重置颜色，保证 alpha=1，避免透明
-#                 for geom in self.visual_model.geometryObjects:
-#                     node_name = self.viz.getViewerNodeName(geom, pinocchio.GeometryType.VISUAL)
-#                     if node_name is None:
-#                         print(f"Warning: node_name is None for geom {geom.name}")
-#                         continue
-#                     if not isinstance(node_name, str):
-#                         node_name = str(node_name)
-#                     if node_name in self.viz.viewer:
-#                         self.viz.viewer[node_name].set_property("color", [0.7, 0.7, 0.7, 1])
-
-# # 2. 高亮碰撞对应视觉模型，确保 alpha=1
-#                 for i in collision_indices:
-#                     pair = self.collision_model.collisionPairs[i]
-#                     geom1_collision = self.collision_model.geometryObjects[pair.first]
-#                     geom2_collision = self.collision_model.geometryObjects[pair.second]
-
-#                     geom1_visual = next((g for g in self.visual_model.geometryObjects if g.name == geom1_collision.name), None)
-#                     geom2_visual = next((g for g in self.visual_model.geometryObjects if g.name == geom2_collision.name), None)
-
-#                     if geom1_visual:
-#                         node_name1 = self.viz.getViewerNodeName(geom1_visual, pinocchio.GeometryType.VISUAL)
-#                         if node_name1 in self.viz.viewer:
-#                             self.viz.viewer[node_name1].set_property("color", [1, 0, 0, 1])
-
-#                     if geom2_visual:
-#                         node_name2 = self.viz.getViewerNodeName(geom2_visual, pinocchio.GeometryType.VISUAL)
-#                         if node_name2 in self.viz.viewer:
-#                             self.viz.viewer[node_name2].set_property("color", [1, 0, 0, 1])
-
-#                         if collision_indices:
-#                             print(f"[Collision] 检测到 {len(collision_indices)} 个碰撞对，已高亮显示视觉模型")
-#                             return True
-
-#             print("[Collision] 无碰撞")
-#             return False
-
-   
-    def check_and_highlight_collisions(self, collision_threshold: float = 0.01) -> bool:
-        # 1. 计算正向运动学
-        pinocchio.forwardKinematics(self.model, self.data, self.q)
-        pinocchio.updateGeometryPlacements(self.model, self.data, self.collision_model, self.collision_data, self.q)
-
-        # 2. 计算所有碰撞对的碰撞信息（距离和碰撞状态）
-        pinocchio.computeCollisions(
-            self.collision_model,
-            self.collision_data,
-            False
-        )
-
-        collision_indices = []
-
-        # 3. 遍历所有碰撞对的结果
-        for i, cr in enumerate(self.collision_data.collisionResults):
-            dist = cr.min_distance if hasattr(cr, 'min_distance') else None
-            is_collision = cr.isCollision() if hasattr(cr, 'isCollision') else False
-
-            # 获取碰撞对
-            pair = self.collision_model.collisionPairs[i]
-            geom1 = self.collision_model.geometryObjects[pair.first]
-            geom2 = self.collision_model.geometryObjects[pair.second]
-
-            if dist is not None:
-                dist_str = f"{dist:.4f} m"
-            else:
-                dist_str = "N/A"
-
-            # 打印碰撞信息
-            # print(f"[Collision Check] Pair {i}: {geom1.name} <--> {geom2.name}, "
-            #     f"distance: {dist_str}, collision: {is_collision}")
-
-            if is_collision or (dist is not None and dist < collision_threshold):
-                print(f"[Collision Detected] 碰撞对 {i}: {geom1.name} <--> {geom2.name}, "
-                    f"距离 {dist_str} < 阈值 {collision_threshold}")
-                collision_indices.append(i)
-
-        # 4. 重置所有碰撞几何体颜色为默认灰色
-        for geom in self.collision_model.geometryObjects:
-            node_name = self.viz.getViewerNodeName(geom, pinocchio.GeometryType.COLLISION)
-            self.viz.viewer[node_name].set_property("color", [0.7, 0.7, 0.7])
-
-        # 5. 高亮碰撞几何体为红色
-        for i in collision_indices:
-            pair = self.collision_model.collisionPairs[i]
-            geom1 = self.collision_model.geometryObjects[pair.first]
-            geom2 = self.collision_model.geometryObjects[pair.second]
-
-            node_name1 = self.viz.getViewerNodeName(geom1, pinocchio.GeometryType.COLLISION)
-            node_name2 = self.viz.getViewerNodeName(geom2, pinocchio.GeometryType.COLLISION)
-
-            self.viz.viewer[node_name1].set_property("color", [1, 0, 0])
-            self.viz.viewer[node_name2].set_property("color", [1, 0, 0])
-
-        if collision_indices:
-            print(f"[Collision] 检测到 {len(collision_indices)} 个碰撞对，已高亮显示")
-            return True
-
-        print("[Collision] 无碰撞")
-        return False
     def display_trajectory(self, q_vec: np.ndarray, t_vec: np.ndarray):
         """
         Visualize the joint trajectories in a Matplotlib plot.
@@ -289,7 +136,6 @@ class Robot:
         返回:
             0 成功，-1 失败
         """
-        collision_threshold=0.001  # 碰撞检测阈值（单位：米）
         # **位置限制检查（可选，如果你定义了self.q_limits）**
         if hasattr(self, "q_limits"):  # self.q_limits: (n_joints, 2)
             for i in range(len(q_target)):
@@ -306,17 +152,6 @@ class Robot:
                 print(q_offset, q_target, self.q)
                 print(f"[servoJ] 关节速度超限: Joint {i} = {np.degrees(q_offset[i]/delta_t):.2f} deg/s")
                 return -1
-        # **临时更新状态用于碰撞检测**
-        q_backup = self.q.copy()
-        self.q = q_target.copy()
-
-        # **碰撞检测**
-        if self.check_and_highlight_collisions(collision_threshold):
-            print("[servoJ] 碰撞检测失败，中止执行")
-            self.q = q_backup
-            exit
-            return -1
-
 
         # **位置伺服更新**
         self.q = q_target.copy()
@@ -531,7 +366,7 @@ class DianaRobot(Robot):
     def __init__(self,target_frame, visualizer: bool = True):
         pinocchio_model_dir = Path(__file__).parent.parent.parent/ "assets"/"urdf"
         print("pinocchio_model_dir:", pinocchio_model_dir.as_posix())
-        model_path = pinocchio_model_dir 
+        model_path = pinocchio_model_dir  
         print(model_path)
         # 构建URDF绝对路径并转换为字符串
         urdf_model_path = (
@@ -552,8 +387,8 @@ class DianaRobot(Robot):
         super().__init__(urdf_path, mesh_dir, vizualizer=visualizer,target_frame=target_frame)
 
         # 设置关节约束（从机器人控制器或官方SDK读取）
-        dblMinPos = np.array([-3.124139, -1.570796*10, -3.124139, 0.000000, -3.124139, -3.124139, -3.124139])
-        dblMaxPos = np.array([3.124139, 1.570796*10, 3.124139, 3.054326, 3.124139, 3.124139, 3.124139])
+        dblMinPos = np.array([-3.124139, -1.570796, -3.124139, 0.000000, -3.124139, -3.124139, -3.124139])
+        dblMaxPos = np.array([3.124139, 1.570796, 3.124139, 3.054326, 3.124139, 3.124139, 3.124139])
 
         # 最大关节速度 (rad/s)
         dblMaxVel = np.array([2.967060, 2.617994, 2.617994, 2.617994, 3.141593, 3.141593, 3.839724])
@@ -571,8 +406,6 @@ class DianaRobot(Robot):
         # 2. 速度限位 (需手动扩展模型属性)
         self.model.velocityLimit = dblMaxVel       # 设置关节速度限位
         self.model.accelerationLimit = dblMaxAcc
-        print("=== Collision pairs ===")
-        
 class DianaMujocoEnv(Robot):
     def __init__(self,target_frame, visualizer: bool = True):
         pinocchio_model_dir = Path(__file__).parent.parent.parent/ "assets"/"urdf"
@@ -754,10 +587,10 @@ class DianaMujocoEnv(Robot):
 
 # 使用示例
 if __name__ == "__main__":
-    robot = DianaRobot(target_frame="link_7")
+    robot = DianaMujocoEnv(target_frame="link_7")
     
     # 示例1：直接控制关节
-    q_start = np.array([0.0, 4.564, 0, 1.84, 0.089, -0.504,0])
+    q_start = np.array([0.0, 0.564, 0, 1.84, 0.089, -0.504,0])
     robot.MoveJ(q_start, v_max=1.8, a_max=8.0, dt=DELTA_T,traj_rviz= True)
 
     init = robot.get_cartesian_pose(q_start)
@@ -773,7 +606,7 @@ if __name__ == "__main__":
         init,
     ]
     target_pose=init * pinocchio.SE3(np.eye(3), np.array([0.0, 0.0, 0.2]))
-    # robot.MoveL(tforms, dt=DELTA_T)
+    robot.MoveL(tforms, dt=DELTA_T)
    
     # 示例2：使用MuJoCo查看器
     # env = DianaMujocoEnv(target_frame="link_7")
