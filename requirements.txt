@@ -1,0 +1,11 @@
+numpy
+scipy
+matplotlib
+pandas
+roboticstoolbox-python
+spatialmath-python
+modern-robotics
+pinocchio
+mujoco
+tracikpy
+meshcat

@@ -119,7 +119,7 @@ class IIWA14(Robot):
             links.append(
                 rtb.DHLink(d=self.d_array[i], alpha=self.alpha_array[i], a=self.a_array[i], offset=self.theta_array[i],
                            mdh=True, m=ms[i], r=rs[i], I=(Rs[i] @ Is[i] @ Rs[i].T)))
-            self.robot = rtb.DHRobot(links)
+        self.robot = rtb.DHRobot(links)
 
         self.robot_config = RobotConfig()
 

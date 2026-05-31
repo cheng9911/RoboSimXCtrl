@@ -1,2 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
 
-/.conda
+# Conda
+.conda/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# MuJoCo runtime
+MUJOCO_LOG.TXT
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.csv
+*.zip

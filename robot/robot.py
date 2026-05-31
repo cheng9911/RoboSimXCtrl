@@ -238,7 +238,7 @@ class Robot(abc.ABC):
         self.robot.tool = self._tool
 
     def disable_tool(self):
-        self._tool = np.zeros(3)
+        self._tool = SE3()
         self.robot.tool = self._tool
 
     def set_base(self, base: np.ndarray):
@@ -275,7 +275,7 @@ class Robot(abc.ABC):
         self.d_array = state["d_array"]
         self.theta_array = state["theta_array"]
         links = []
-        for i in range(6):
+        for i in range(self._dof):
             links.append(
                 rtb.DHLink(d=self.d_array[i], alpha=self.alpha_array[i], a=self.a_array[i], offset=self.theta_array[i],
                            mdh=True))

@@ -1,3 +1,0 @@
-Tue May  6 18:45:48 2025
-ERROR: could not create window
-

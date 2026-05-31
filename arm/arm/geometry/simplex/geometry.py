@@ -4,7 +4,7 @@ from typing import overload
 
 import numpy as np
 
-from arm.constanst import MathConst
+from arm.constants import MathConst
 
 
 class Geometry(ABC):

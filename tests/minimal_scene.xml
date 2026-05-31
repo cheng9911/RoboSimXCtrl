@@ -1,0 +1,29 @@
+<mujoco model="test_scene">
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+
+  <worldbody>
+    <light diffuse=".5 .5 .5" pos="0 0 3" dir="0 0 -1"/>
+    <geom type="plane" size="1 1 0.1" rgba=".9 .9 .9 1"/>
+
+    <body name="box" pos="0 0 0.5">
+      <freejoint name="box_free"/>
+      <geom type="box" size="0.05 0.05 0.05" rgba="1 0 0 1" name="Box"/>
+    </body>
+
+    <body name="link1" pos="0 0 0.3">
+      <joint name="joint_1" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
+      <geom type="cylinder" size="0.03 0.15" rgba="0 1 0 1"/>
+    </body>
+
+    <body name="link2" pos="0 0 0.6">
+      <joint name="joint_2" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
+      <geom type="cylinder" size="0.03 0.15" rgba="0 0 1 1"/>
+    </body>
+
+    <camera name="cam0" pos="1 1 1" xyaxes="0 -1 0 1 0 0"/>
+  </worldbody>
+
+  <equality>
+    <connect name="grasp_eq" body1="link2" body2="box" anchor="0 0 0" active="false"/>
+  </equality>
+</mujoco>
