@@ -60,7 +60,7 @@ class Robot:
         self.viz = MeshcatVisualizer(self.model, self.collision_model, self.visual_model, data=self.data)
         self.viz.initViewer(open=vizualizer)
         self.viz.loadViewerModel()
-        self.viz.displayVisuals(True)  # 隐藏
+        self.viz.displayVisuals(False)  # 隐藏
         self.viz.displayCollisions(True)   # 显示
         
         if(vizualizer):
@@ -233,7 +233,7 @@ class Robot:
         # 4. 重置所有碰撞几何体颜色为默认灰色
         for geom in self.collision_model.geometryObjects:
             node_name = self.viz.getViewerNodeName(geom, pinocchio.GeometryType.COLLISION)
-            self.viz.viewer[node_name].set_property("color", [0.7, 0.7, 0.7])
+            self.viz.viewer[node_name].set_property("color", [0.7, 0.7, 0.7, 1])
 
         # 5. 高亮碰撞几何体为红色
         for i in collision_indices:
@@ -244,8 +244,8 @@ class Robot:
             node_name1 = self.viz.getViewerNodeName(geom1, pinocchio.GeometryType.COLLISION)
             node_name2 = self.viz.getViewerNodeName(geom2, pinocchio.GeometryType.COLLISION)
 
-            self.viz.viewer[node_name1].set_property("color", [1, 0, 0])
-            self.viz.viewer[node_name2].set_property("color", [1, 0, 0])
+            self.viz.viewer[node_name1].set_property("color", [1, 0, 0,1])
+            self.viz.viewer[node_name2].set_property("color", [1, 0, 0,1])
 
         if collision_indices:
             print(f"[Collision] 检测到 {len(collision_indices)} 个碰撞对，已高亮显示")
@@ -311,11 +311,11 @@ class Robot:
         self.q = q_target.copy()
 
         # **碰撞检测**
-        if self.check_and_highlight_collisions(collision_threshold):
-            print("[servoJ] 碰撞检测失败，中止执行")
-            self.q = q_backup
-            exit
-            return -1
+        # if self.check_and_highlight_collisions(collision_threshold):
+        #     print("[servoJ] 碰撞检测失败，中止执行")
+        #     self.q = q_backup
+        #     exit
+        #     return -1
 
 
         # **位置伺服更新**
@@ -324,6 +324,9 @@ class Robot:
         # **可选：触发可视化或仿真接口**
         if hasattr(self, "viz"):
             self.viz.display(self.q)
+            # 可视化当前关节角的碰撞体
+            
+
         time.sleep(delta_t)
 
         return 0
